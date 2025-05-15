@@ -1,0 +1,49 @@
+#!/bin/bash
+#SBATCH --job-name=prokka
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=8
+#SBATCH --array=1-20  # Adjust based on the number of bins you have
+#SBATCH --mem=16G
+#SBATCH --time=4:00:00
+#SBATCH --output=prokka_%A_%a.out
+#SBATCH --error=prokka_%A_%a.err
+#SBATCH --partition=batch
+
+# Load Prokka module
+module load prokka/1.14
+
+# Change to working directory
+cd /work/fauverlab/zachpella/braker_run/unmapped_reads/bams_surface_sterlizied_namericanus_l3s_for_ZP/fastq_og
+
+# Create directory for Prokka results
+mkdir -p prokka_results
+
+# Get list of all bin files
+BIN_FILES=($(ls all_bins/*.fa))
+
+# Get current bin file based on array task ID (if array is within range)
+if [ "${SLURM_ARRAY_TASK_ID}" -le "${#BIN_FILES[@]}" ]; then
+    INDEX=$((SLURM_ARRAY_TASK_ID-1))
+    BIN_FILE=${BIN_FILES[$INDEX]}
+    BIN_NAME=$(basename "${BIN_FILE}" .fa)
+
+    echo "Annotating ${BIN_NAME}..."
+
+    # Only process bins if they're high quality (adjust these thresholds as needed)
+    # You'll need to check the checkm2 results first to determine high-quality bins
+    # For now, we'll process all bins
+
+    # Run Prokka annotation
+    prokka --outdir prokka_results/${BIN_NAME} \
+           --prefix ${BIN_NAME} \
+           --cpus 8 \
+           --kingdom Bacteria \
+           --centre X \
+           --compliant \
+           --force \
+           ${BIN_FILE}
+
+    echo "Annotation completed for ${BIN_NAME}"
+else
+    echo "No bin file found for array task ${SLURM_ARRAY_TASK_ID}"
+fi
