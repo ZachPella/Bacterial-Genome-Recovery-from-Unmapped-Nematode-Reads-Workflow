@@ -1,0 +1,27 @@
+#!/bin/bash
+#SBATCH --job-name=checkm_redo
+#SBATCH --output=checkm_redo_%j.out
+#SBATCH --error=checkm_redo_%j.err
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=8
+#SBATCH --mem=32G
+#SBATCH --time=6:00:00
+#SBATCH --partition=batch
+
+# Load CheckM module
+module load checkm-genome/1.1
+
+# Change to working directory
+cd /work/fauverlab/zachpella/braker_run/unmapped_reads/bams_surface_sterlizied_namericanus_l3s_for_ZP/fastq_og
+
+# Create a new directory for CheckM results
+mkdir -p checkm_full_results
+
+# Gather all bin files in one place (if not already done)
+mkdir -p all_bins
+find metabat2_bins -name "*.fa" -exec cp {} all_bins/ \;
+
+# Run the complete CheckM workflow
+checkm lineage_wf --tab_table -x fa --file checkm_full_results/quality_summary.tsv all_bins checkm_full_results
+
+echo "CheckM full workflow completed"
