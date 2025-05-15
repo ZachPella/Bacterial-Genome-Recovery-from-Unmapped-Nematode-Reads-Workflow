@@ -1,0 +1,42 @@
+#!/bin/bash
+#SBATCH --job-name=extract_bacteria
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --array=1-9
+#SBATCH --mem=8G
+#SBATCH --time=2:00:00
+#SBATCH --output=extract_bacteria_%j.out
+#SBATCH --error=extract_bacteria_%j.err
+#SBATCH --partition=batch
+
+# Change to working directory
+cd /work/fauverlab/zachpella/braker_run/unmapped_reads/bams_surface_sterlizied_namericanus_l3s_for_ZP/fastq_og
+
+module load python
+module load biopython
+
+# Create an array of the BAM files (to use the same sample names)
+BAM_FILES=($(ls *.sorted.refrename.bam))
+
+# Get the current sample
+INDEX=$((SLURM_ARRAY_TASK_ID-1))
+CURRENT_BAM=${BAM_FILES[$INDEX]}
+SAMPLE_NAME=$(basename "${CURRENT_BAM}" .sorted.refrename.bam)
+
+# Create output directory
+mkdir -p bacterial_reads
+
+echo "Extracting bacterial reads for ${SAMPLE_NAME}..."
+
+python /work/fauverlab/zachpella/KrakenTools/extract_kraken_reads.py \
+    -k kraken2_results/${SAMPLE_NAME}.kraken \
+    -s fastq_for_assembly/${SAMPLE_NAME}.unmapped.R1.fastq \
+    -s2 fastq_for_assembly/${SAMPLE_NAME}.unmapped.R2.fastq \
+    -o bacterial_reads/${SAMPLE_NAME}.bacterial.R1.fastq \
+    -o2 bacterial_reads/${SAMPLE_NAME}.bacterial.R2.fastq \
+    -t 2 \
+    --include-children \
+    --fastq-output \
+    -r kraken2_results/${SAMPLE_NAME}.report
+
+echo "Bacterial reads extraction completed for ${SAMPLE_NAME}"
