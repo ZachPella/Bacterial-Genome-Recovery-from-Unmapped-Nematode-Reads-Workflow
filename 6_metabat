@@ -1,0 +1,44 @@
+#!/bin/bash
+#SBATCH --job-name=metabat2
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=8
+#SBATCH --array=1-9
+#SBATCH --mem=16G
+#SBATCH --time=4:00:00
+#SBATCH --output=metabat2_%j.out
+#SBATCH --error=metabat2_%j.err
+#SBATCH --partition=batch
+
+# Load necessary modules - check if your system has MetaBAT2
+module load metabat2  # Try this first
+# If the above doesn't work, try: module spider metabat
+
+# Change to working directory
+cd /work/fauverlab/zachpella/braker_run/unmapped_reads/bams_surface_sterlizied_namericanus_l3s_for_ZP/fastq_og
+
+# Create directory for bins
+mkdir -p metabat2_bins
+
+# Create an array of the BAM files (to use the same sample names)
+BAM_FILES=($(ls *.sorted.refrename.bam))
+
+# Get the current sample
+INDEX=$((SLURM_ARRAY_TASK_ID-1))
+CURRENT_BAM=${BAM_FILES[$INDEX]}
+SAMPLE_NAME=$(basename "${CURRENT_BAM}" .sorted.refrename.bam)
+
+echo "Binning contigs for ${SAMPLE_NAME}..."
+
+# Generate depth file for MetaBAT2
+jgi_summarize_bam_contig_depths --outputDepth metabat2_bins/${SAMPLE_NAME}_depth.txt \
+                              binning_prep/${SAMPLE_NAME}.bam
+
+# Run MetaBAT2 for binning
+# Use the correct path to the assembled bacterial contigs from Megahit
+metabat2 -i all_contigs/${SAMPLE_NAME}.bacterial_contigs.fa \
+       -a metabat2_bins/${SAMPLE_NAME}_depth.txt \
+       -o metabat2_bins/${SAMPLE_NAME}_bin \
+       -m 1500 \
+       -t 8
+
+echo "Binning completed for ${SAMPLE_NAME}"
