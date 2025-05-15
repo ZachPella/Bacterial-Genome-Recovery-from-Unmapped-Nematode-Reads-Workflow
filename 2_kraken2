@@ -1,0 +1,42 @@
+#!/bin/bash
+#SBATCH --job-name=kraken2_analysis
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --array=1-9  # For 9 samples
+#SBATCH --mem=20G
+#SBATCH --time=24:00:00
+#SBATCH --output=kraken2_%j.out
+#SBATCH --error=kraken2_%j.err
+#SBATCH --partition=batch
+
+# Load necessary modules
+module load kraken2
+
+# Change to working directory
+cd /work/fauverlab/zachpella/braker_run/unmapped_reads/bams_surface_sterlizied_namericanus_l3s_for_ZP/fastq_og
+
+# Create an array of the BAM files
+BAM_FILES=($(ls *.sorted.refrename.bam))
+
+# Get the current sample
+INDEX=$((SLURM_ARRAY_TASK_ID-1))
+CURRENT_BAM=${BAM_FILES[$INDEX]}
+SAMPLE_NAME=$(basename "${CURRENT_BAM}" .sorted.refrename.bam)
+
+# Create output directory
+mkdir -p kraken2_results
+
+echo "Running Kraken2 for ${SAMPLE_NAME}..."
+
+# Run Kraken2 on the UNMAPPED READS (not contigs yet)
+kraken2 --db $KRAKEN2_DB \
+        --threads 4 \
+        --output kraken2_results/${SAMPLE_NAME}.kraken \
+        --report kraken2_results/${SAMPLE_NAME}.report \
+        --paired \
+        --use-names \
+        --memory-mapping \
+        fastq_for_assembly/${SAMPLE_NAME}.unmapped.R1.fastq \
+        fastq_for_assembly/${SAMPLE_NAME}.unmapped.R2.fastq
+
+echo "Kraken2 classification completed for ${SAMPLE_NAME}"
