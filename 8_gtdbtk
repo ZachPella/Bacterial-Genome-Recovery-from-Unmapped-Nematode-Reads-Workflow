@@ -1,0 +1,38 @@
+#!/bin/bash
+#SBATCH --job-name=gtdbtk
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --mem=30G
+#SBATCH --time=24:00:00
+#SBATCH --output=gtdbtk_%j.out
+#SBATCH --error=gtdbtk_%j.err
+#SBATCH --partition=batch
+
+# Load GTDB-Tk module
+module load gtdbtk/2.4
+
+# Change to working directory
+cd /work/fauverlab/zachpella/braker_run/unmapped_reads/bams_surface_sterlizied_namericanus_l3s_for_ZP/fastq_og
+
+# Create directory for GTDB-Tk results
+mkdir -p gtdbtk_results
+
+# Make sure we have the all_bins directory
+if [ ! -d "all_bins" ]; then
+    mkdir -p all_bins
+    find metabat2_bins -name "*.fa" -exec cp {} all_bins/ \;
+fi
+
+# Count how many bins we found
+bin_count=$(ls all_bins/ | wc -l)
+echo "Found $bin_count bin files in all_bins/"
+
+# Run GTDB-Tk classify workflow with the required --skip_ani_screen parameter
+gtdbtk classify_wf --genome_dir all_bins \
+                   --out_dir gtdbtk_results \
+                   --extension fa \
+                   --cpus 4 \
+                   --skip_ani_screen \
+                   --min_af 0.5
+
+echo "GTDB-Tk classification completed"
