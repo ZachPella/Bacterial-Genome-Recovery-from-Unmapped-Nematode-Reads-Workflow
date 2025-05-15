@@ -1,0 +1,47 @@
+#!/bin/bash
+#SBATCH --job-name=binning_prep
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=8
+#SBATCH --array=1-9
+#SBATCH --mem=16G
+#SBATCH --time=4:00:00
+#SBATCH --output=binning_prep_%j.out
+#SBATCH --error=binning_prep_%j.err
+#SBATCH --partition=batch
+
+# Load necessary modules
+module load bowtie/2.5
+module load samtools
+
+# Change to working directory
+cd /work/fauverlab/zachpella/braker_run/unmapped_reads/bams_surface_sterlizied_namericanus_l3s_for_ZP/fastq_og
+
+# Create directory for binning preparation
+mkdir -p binning_prep
+
+# Create an array of the BAM files (to use the same sample names)
+BAM_FILES=($(ls *.sorted.refrename.bam))
+
+# Get the current sample
+INDEX=$((SLURM_ARRAY_TASK_ID-1))
+CURRENT_BAM=${BAM_FILES[$INDEX]}
+SAMPLE_NAME=$(basename "${CURRENT_BAM}" .sorted.refrename.bam)
+
+echo "Processing ${SAMPLE_NAME} for binning preparation..."
+
+# Build a Bowtie2 index for the bacterial contigs (from Megahit output)
+bowtie2-build all_contigs/${SAMPLE_NAME}.bacterial_contigs.fa binning_prep/${SAMPLE_NAME}_index
+
+# Map the bacterial reads back to the bacterial contigs
+# Using bacterial reads, not all unmapped reads
+bowtie2 -x binning_prep/${SAMPLE_NAME}_index \
+        -1 bacterial_reads/${SAMPLE_NAME}.bacterial.R1.fastq \
+        -2 bacterial_reads/${SAMPLE_NAME}.bacterial.R2.fastq \
+        -p 8 | \
+        samtools view -bS - | \
+        samtools sort -o binning_prep/${SAMPLE_NAME}.bam -
+
+# Index the BAM file
+samtools index binning_prep/${SAMPLE_NAME}.bam
+
+echo "Binning preparation completed for ${SAMPLE_NAME}"
